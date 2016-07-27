@@ -1,0 +1,126 @@
+[
+	{
+		"ParameterKey": "AMI",
+		"ParameterValue":"TODO"
+	},
+	{
+		"ParameterKey": "PubsubImage",
+		"ParameterValue": "TODO"
+	},
+	{
+		"ParameterKey": "VPC",
+		"ParameterValue":"vpc-937c61f6"
+	},
+    {
+        "ParameterKey": "DefaultSG",
+        "ParameterValue":""
+    },
+    {
+        "ParameterKey": "Subnets",
+        "ParameterValue":""
+    },
+    {
+        "ParameterKey": "AvailabilityZones",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "ECSVersion",
+        "ParameterValue":"v1.8.0"
+    },
+	{
+		"ParameterKey": "PubsubServerInstanceProfile",
+		"ParameterValue":"TODO"
+	},
+    {
+        "ParameterKey": "DesiredContainerCount",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "AppInstanceType",
+        "ParameterValue": "m3.xlarge"
+    },
+	{
+		"ParameterKey": "AppDesiredCapacity",
+		"ParameterValue":"2"
+	},
+	{
+		"ParameterKey": "AppMaxGroupSize",
+		"ParameterValue":"20"
+	},
+	{
+		"ParameterKey": "AppMinGroupSize",
+		"ParameterValue":"1"
+	},
+	{
+		"ParameterKey": "CertARN",
+		"ParameterValue":"TODO"
+	},
+	{
+		"ParameterKey": "Role",
+		"ParameterValue":"Prod"
+	},
+	{
+		"ParameterKey": "Purpose",
+		"ParameterValue":"Pubsub-logs"
+	},
+	{
+		"ParameterKey": "Service",
+		"ParameterValue":"Docker"
+	},
+	{
+		"ParameterKey": "HealthCheckTarget",
+		"ParameterValue": "HTTP:8080/"
+	},
+	{
+		"ParameterKey": "S3BucketName",
+		"ParameterValue": "w-pubsub-logs-prod"
+	},
+	{
+		"ParameterKey": "LoggingBucket",
+		"ParameterValue": "workiva-s3-logs-prod"
+	},
+	{
+		"ParameterKey": "SecondaryRegion",
+		"ParameterValue": "us-west-2"
+	},
+	{
+		"ParameterKey": "PrimaryKinesisFirehose",
+		"ParameterValue": "pubsub_logs"
+	},
+	{
+		"ParameterKey": "SecondaryKinesisFirehose",
+		"ParameterValue": "pubsub_logs"
+	},
+	{
+		"ParameterKey": "PrimarySNS",
+		"ParameterValue": "cloud_logs"
+	},
+	{
+		"ParameterKey": "SecondarySNS",
+		"ParameterValue": "cloud_logs"
+	},
+	{
+		"ParameterKey": "AccountID",
+		"ParameterValue": "663511558366"
+	},
+	{
+		"ParameterKey": "LambdaCodeBucket",
+		"ParameterValue": "cloudops-prod-lambda-code"
+	},
+	{
+		"ParameterKey": "LambdaESForwarderCodeFile",
+		"ParameterValue": "Pubsub-prod/PubsubESForwarder-prod.zip"
+	},
+	{
+		"ParameterKey": "LambdaECSScalingCodeFile",
+		"ParameterValue": "Pubsub-prod/PubsubECSScaling-prod.zip"
+	},
+	{
+		"ParameterKey": "IamRoleLambdaESForwarder",
+		"ParameterValue": "TODO"
+	},
+	{
+		"ParameterKey": "IamRoleLambdaECSScaling",
+		"ParameterValue": "TODO"
+	}
+]

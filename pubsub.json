@@ -1,0 +1,556 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Pubsub Stack",
+    "Parameters": {
+	    "AMI": {
+	        "Description": "AMI to use in the Pubsub launch config",
+	        "Type": "String"
+	    },
+	    "VPC": {
+	        "Description": "VPC this stack is being built in. Must have corresponding entry in the account's Mappings section",
+	        "Type": "String"
+	    },
+        "DefaultSG": {
+            "Description": "Security group to assign to this instance",
+            "Type": "String"
+        },
+        "Subnets": {
+            "Description": "Subnets to build stack in",
+            "Type": "List<AWS::EC2::Subnet::Id>"
+        },
+        "AvailabilityZones": {
+            "Description": "AZs to build stack in",
+            "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+        },
+	    "ECSVersion": {
+	        "Description": "Version of the ECS agent to deploy",
+	        "Type": "String"
+	    },
+        "PubsubServerInstanceProfile": {
+            "Description": "Iam Profile ARN to assign to instance",
+            "Type": "String"
+        },
+	    "DesiredContainerCount": {
+	        "Description": "Desired number of containers to deploy",
+	        "Type": "String"
+	    },
+        "AppInstanceType": {
+            "Description": "EC2 instance type (m3.medium, etc).",
+            "Type": "String",
+            "AllowedValues": [
+                "m3.medium",   "m3.large",    "m3.xlarge",   "m3.2xlarge",
+                "c3.large",    "c3.xlarge",   "c3.2xlarge",  "c3.4xlarge",
+                "c3.8xlarge",  "cc2.8xlarge", "cr1.8xlarge", "hi1.4xlarge",
+                "hs1.8xlarge", "i2.xlarge",   "i2.2xlarge",  "i2.4xlarge",
+                "i2.8xlarge",  "r3.large",    "r3.xlarge",   "r3.2xlarge",
+                "r3.4xlarge",  "r3.8xlarge",  "t2.micro",    "t2.small",
+                "t2.medium"
+            ],
+            "ConstraintDescription": "Must be a valid EC2 instance type."
+        },
+        "AppDesiredCapacity": {
+            "Description": "Desired Capacity of AutoScaling Group",
+            "Type": "String"
+        },
+        "AppMaxGroupSize": {
+            "Description": "Maximum size of the AutoScaling Group",
+            "Type": "String"
+        },
+        "AppMinGroupSize": {
+            "Description": "Minimum size of the AutoScaling Group",
+            "Type": "String"
+        },
+	    "CertARN": {
+	        "Description": "ARN for SSL Certificate",
+	        "Type": "String"
+	    },
+	    "Role": {
+	        "Description": "Role for the stack",
+	        "Type": "String"
+	    },
+	    "Purpose": {
+	        "Description": "Purpose for the stack",
+	        "Type": "String"
+	    },
+	    "Service": {
+	        "Description": "Service for the stack",
+	        "Type": "String"
+	    },
+	    "HealthCheckTarget": {
+	        "Description": "Health check target for the ELB",
+	        "Type": "String"
+	    },
+	    "S3BucketName": {
+	        "Description": "Bucket to send pubsub messages to",
+	        "Type": "String"
+        },
+	    "LoggingBucket": {
+	        "Description": "Bucket to send s3 bucket logs to",
+	        "Type": "String",
+            "Default": "None"
+	    },
+	    "SecondaryRegion": {
+	        "Description": "Other region this stack will be deployed to",
+	        "Type": "String"
+	    },
+	    "PrimaryKinesisFirehose": {
+	        "Description": "Kinesis firehose stream to use",
+	        "Type": "String"
+	    },
+	    "SecondaryKinesisFirehose": {
+	        "Description": "Kinesis firehose stream to use in the secondary region",
+	        "Type": "String"
+	    },
+	    "PrimarySNS": {
+	        "Description": "Name of SNS stream to create in this region",
+	        "Type": "String"
+	    },
+	    "SecondarySNS": {
+	        "Description": "Name of SNS stream to that will exist in the secondary region",
+	        "Type": "String"
+	    },
+	    "AccountID": {
+	        "Description": "Account number of the AWS account being deployed to",
+	        "Type": "String"
+	    },
+	    "PubsubImage": {
+	        "Description": "Container image to deploy to the pubsub ECS cluster",
+	        "Type": "String"
+	    },
+	    "LambdaCodeBucket": {
+	        "Description": "S3 bucket where to find lambda code",
+	        "Type": "String"
+	    },
+	    "LambdaESForwarderCodeFile": {
+	        "Description": "Location in bucket where ESForwarder lambda zip file is located",
+	        "Type": "String"
+	    },
+	    "LambdaECSScalingCodeFile": {
+	        "Description": "Location in bucket where ECSScaling lambda zip file is located",
+	        "Type": "String"
+	    },
+	    "IamRoleLambdaESForwarder": {
+	        "Description": "IAM role created for the ESForwarder lambda function",
+	        "Type": "String"
+	    },
+	    "IamRoleLambdaECSScaling": {
+	        "Description": "IAM role created for the ECSScaling lambda function",
+	        "Type": "String"
+	    }
+    },
+    "Conditions" : {
+        "NoS3Logging" : {"Fn::Equals" : [{"Ref": "LoggingBucket"}, "None"] },
+        "GivePublicIP" : {"Fn::Equals" : [{"Ref": "Role"}, "Dev"] },
+        "MakeS3Bucket" : {
+            "Fn::Not" : [
+                {"Fn::Equals" : [{"Ref": "S3BucketName"}, "None"] }
+            ]
+        }
+    },
+    "Resources": {
+        "PubsubServerSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": { "Ref" : "VPC" },
+                "GroupDescription": { "Fn::Join" : ["",["Security group for Pubsub-",{"Ref":"Role"},"-",{ "Ref": "AWS::Region" }," servers"]] }
+            },
+            "Metadata" : {"version": "3"}
+        },
+        "PubsubServerSecurityGroupIngress": {
+             "Type" : "AWS::EC2::SecurityGroupIngress",
+             "Properties" : {
+                 "GroupId" : { "Ref" : "PubsubServerSecurityGroup" },
+                 "IpProtocol" : "tcp",
+                 "ToPort" : "8080",
+                 "FromPort" : "8080",
+                 "SourceSecurityGroupId" : { "Ref" : "PubsubELBSecurityGroup" }
+             }
+        },
+        "PubsubServerLaunchConfiguration": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Properties": {
+                "ImageId": { "Ref": "AMI" },
+                "IamInstanceProfile": { "Ref": "PubsubServerInstanceProfile" },
+                "AssociatePublicIpAddress" : {
+                    "Fn::If" : [
+                        "GivePublicIP",
+                        true,
+                        false
+                    ]
+                },
+                "InstanceType": { "Ref": "AppInstanceType" },
+                "SecurityGroups": [ { "Ref": "PubsubServerSecurityGroup"} , { "Ref": "DefaultSG" } ],
+                "UserData": { "Fn::Base64": {
+                    "Fn::Join": [ "", [
+                        "#!/bin/bash -e\n",
+                        "\n",
+                        "echo \"`date`: Entering user data script\"\n",
+                        "ECS_CLUSTER=",{ "Ref":"ECSCluster"},"\n",
+                        "instance_id=`curl http://169.254.169.254/latest/meta-data/instance-id`\n",
+                        "hostname ${ECS_CLUSTER}-${instance_id}\n",
+                        "\n",
+                        "splunk_hostname=`hostname`\n",
+                        "sed -i  \"s/host =.*/host = $splunk_hostname/\" /opt/splunkforwarder/etc/system/local/inputs.conf\n",
+                        "service splunk restart\n",
+                        "\n",
+                        "# Set ECS Cluster name in ecs config file\n",
+                        "echo \"ECS_CLUSTER=$ECS_CLUSTER\" >> /etc/ecs/ecs.config \n",
+                        "\n",
+                        "# Fix hostname\n",
+                        "sed -i \"s/127.0.1.1.*/127.0.1.1 `hostname`/\" /etc/hosts\n",
+                        "\n",
+                        "sudo docker run --name ecs-agent \\\n",
+                        "        --detach=true \\\n",
+                        "        --restart=on-failure:10 \\\n",
+                        "        --volume=/var/run/docker.sock:/var/run/docker.sock \\\n",
+                        "        --volume=/var/log/ecs/:/log \\\n",
+                        "        --volume=/var/lib/ecs/data:/data \\\n",
+                        "        --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro \\\n",
+                        "        --volume=/var/run/docker/execdriver/native:/var/lib/docker/execdriver/native:ro \\\n",
+                        "        --publish=127.0.0.1:51678:51678 \\\n",
+                        "        --env-file=/etc/ecs/ecs.config \\\n",
+                        "        --env=ECS_LOGFILE=/log/ecs-agent.log \\\n",
+                        "        --env=ECS_LOGLEVEL=info \\\n",
+                        "        --env=ECS_DATADIR=/data \\\n",
+                        "        amazon/amazon-ecs-agent:", { "Ref": "ECSVersion" },"\n",
+                        "\n",
+                        "echo \"`date`: user-data script complete\"\n",
+                        "service datadog-agent restart","\n",
+                        "echo \"`date`: datadog agent started\"","\n",
+                        "/usr/local/bin/cfn-signal -s true --stack ", { "Ref" : "AWS::StackName" }, " --resource PubsubASG --region ", { "Ref" : "AWS::Region" },"\n"
+                    ] ]
+                } }
+            }
+        },
+        "PubsubServerScaleUpPolicy": {
+            "Type": "AWS::AutoScaling::ScalingPolicy",
+            "Properties": {
+                "AdjustmentType": "ChangeInCapacity",
+                "AutoScalingGroupName": { "Ref": "PubsubASG" },
+                "Cooldown": "900",
+                "ScalingAdjustment": "1"
+            }
+        },
+        "PubsubHighLatencyAlarm": {
+           "Type": "AWS::CloudWatch::Alarm",
+           "Properties": {
+	          "AlarmName": { "Fn::Join": ["",["Pubsub-", { "Ref": "Role" }, "-", { "Ref" : "AWS::Region" }, "-High-Latency" ]] },
+              "EvaluationPeriods": "1",
+              "Statistic": "Average",
+              "Threshold": "0.12",
+              "AlarmDescription": "Alarm if latency is too high on the ELB",
+              "Period": "300",
+              "AlarmActions": [ { "Ref": "PubsubServerScaleUpPolicy" } ],
+              "Namespace": "AWS/ELB",
+              "Dimensions": [ {
+                 "Name": "LoadBalancerName",
+                 "Value": { "Ref": "PubsubElasticLoadBalancer" }
+              } ],
+              "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+              "MetricName": "Latency"
+	        }
+        },
+        "PubsubServerScaleDownPolicy": {
+            "Type": "AWS::AutoScaling::ScalingPolicy",
+            "Properties": {
+                "AdjustmentType": "ChangeInCapacity",
+                "AutoScalingGroupName": { "Ref": "PubsubASG" },
+                "Cooldown": "900",
+                "ScalingAdjustment": "-1"
+            }
+        },
+        "PubsubLowNetworkInAlarm": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+	            "AlarmName": { "Fn::Join": ["",["Pubsub-", { "Ref": "Role" },"-" , { "Ref" : "AWS::Region" }, "-Low-CPU" ]] },
+                "EvaluationPeriods": "6",
+                "Statistic": "Average",
+                "Threshold": "30000000",
+                "AlarmDescription": "Alarm if CPU too high or metric disappears indicating instance is down",
+                "Period": "300",
+                "AlarmActions": [ { "Ref": "PubsubServerScaleDownPolicy" } ],
+                "Namespace": "AWS/EC2",
+                "Dimensions": [ {
+                    "Name": "AutoScalingGroupName",
+                    "Value": { "Ref": "PubsubASG" }
+                } ],
+              "ComparisonOperator": "LessThanOrEqualToThreshold",
+              "MetricName": "NetworkIn"
+	        }
+        },
+        "PubsubASG": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "AvailabilityZones": { "Ref": "AvailabilityZones" },
+                "LaunchConfigurationName": { "Ref": "PubsubServerLaunchConfiguration" },
+                "Cooldown": "300",
+                "DesiredCapacity": { "Ref": "AppDesiredCapacity" },
+                "HealthCheckGracePeriod": "900",
+                "HealthCheckType": "EC2",
+                "MaxSize": { "Ref": "AppMaxGroupSize" },
+                "MinSize": { "Ref": "AppMinGroupSize" },
+                "MetricsCollection": [ {
+                    "Granularity": "1Minute",
+                    "Metrics": [ "GroupInServiceInstances" ]
+                } ],
+                "NotificationConfigurations": [
+                    {
+                        "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH", "autoscaling:EC2_INSTANCE_LAUNCH_ERROR", "autoscaling:EC2_INSTANCE_TERMINATE", "autoscaling:EC2_INSTANCE_TERMINATE_ERROR" ],
+                        "TopicARN" : { "Ref": "PubsubECSScalingSNS" }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": { "Fn::Join":["",["Pubsub-",{ "Ref": "Role" },"-asg"]] },
+                        "PropagateAtLaunch": "false"
+                    },
+                    {
+                        "Key": "Role",
+                        "Value": { "Ref": "Role" },
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "Purpose",
+                        "Value": { "Ref": "Purpose" },
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "Business-Unit",
+                        "Value": "asg",
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "ecs_cluster_name",
+                        "Value": { "Ref" : "ECSCluster" },
+                        "PropagateAtLaunch": "false"
+                    },
+                    {
+                        "Key": "ecs_services_per_instance",
+                        "Value": "1",
+                        "PropagateAtLaunch": "false"
+                    }
+                ],
+                "VPCZoneIdentifier": { "Ref": "Subnets" },
+                "LoadBalancerNames": [
+                    { "Ref": "PubsubElasticLoadBalancer" }
+                ]
+            },
+            "UpdatePolicy": {
+                "AutoScalingRollingUpdate": {
+                    "MinInstancesInService": "1",
+                    "MaxBatchSize": "8",
+                    "PauseTime" : "PT10M",
+                    "WaitOnResourceSignals": "true"
+                }
+            }
+        },
+        "PubsubELBSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": { "Ref" : "VPC" },
+                "GroupDescription": { "Fn::Join": ["",["Public security group for Pubsub-",{ "Ref": "Role" },"-ELB"]] },
+                "SecurityGroupIngress": [
+                    { "IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0" }
+                ]
+            }
+        },
+        "PubsubElasticLoadBalancer": {
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+            "Properties": {
+    		"LoadBalancerName": { "Fn::Join":["",["Pubsub-",{"Ref": "Role"},"-ELB"]] },
+                "Subnets": { "Ref": "Subnets" },
+                "CrossZone": "true",
+                "ConnectionDrainingPolicy" : {
+                    "Enabled" : true,
+                    "Timeout" : 300
+                },
+                "Listeners": [
+                    {
+                        "LoadBalancerPort": "443",
+                        "InstancePort": "8080",
+                        "InstanceProtocol": "HTTP",
+                        "Protocol": "HTTPS",
+            			"SSLCertificateId": {"Ref" : "CertARN" }
+                    }
+                ],
+                "HealthCheck": {
+                    "Target": {"Ref": "HealthCheckTarget"},
+                    "Interval": "15",
+                    "HealthyThreshold": "2",
+                    "UnhealthyThreshold": "3",
+                    "Timeout": "5"
+                },
+                "SecurityGroups": [ { "Ref": "PubsubELBSecurityGroup" } ],
+                "Tags": [
+                    {
+                        "Key": "Role",
+                        "Value": { "Ref": "Role" }
+                    },
+                    {
+                        "Key": "Purpose",
+                        "Value": { "Ref": "Purpose" }
+                    }
+                ]
+            }
+        },
+        "ECSCluster" : {
+            "Type" : "AWS::ECS::Cluster"
+        },
+        "PubsubService" : {
+            "Type" : "AWS::ECS::Service",
+            "DependsOn" : "PubsubASG",
+            "Properties" : {
+                "Cluster" : { "Ref" : "ECSCluster" },
+                "DesiredCount" : {"Ref" : "DesiredContainerCount" },
+                "TaskDefinition" : { "Ref" : "PubsubTaskDefinition" }
+            }
+        },
+        "PubsubTaskDefinition" :{
+            "Type" : "AWS::ECS::TaskDefinition",
+            "Properties" : {
+                "ContainerDefinitions" : [
+                    {
+                        "Cpu" : 4096,
+                        "Environment" :  [
+                            {
+                                "Name" : "primary_region",
+                                "Value" : { "Ref" : "AWS::Region" }
+                            },
+                            {
+                                "Name" : "secondary_region",
+                                "Value" : { "Ref" : "SecondaryRegion"}
+                            },
+                            {
+                                "Name" : "primary_sns",
+                                "Value" : { "Fn::Join" : ["",["arn:aws:sns:", { "Ref" : "AWS::Region"},":",{ "Ref" : "AccountID" },":",{ "Ref" : "PrimarySNS"}]]}
+                            },
+                            {
+                                "Name" : "secondary_sns",
+                                "Value" : { "Fn::Join" : ["",["arn:aws:sns:", { "Ref" : "SecondaryRegion"},":",{ "Ref" : "AccountID" },":",{ "Ref" : "SecondarySNS"}]]}
+                            },
+                            {
+                                "Name" : "primary_kinesis_firehose",
+                                "Value" : { "Ref" : "PrimaryKinesisFirehose" }
+                            },
+                            {
+                                "Name" : "secondary_kinesis_firehose",
+                                "Value" : { "Ref" : "SecondaryKinesisFirehose" }
+                            },
+                            {
+                                "Name" : "PORT",
+                                "Value" : "8080"
+                            }
+                        ],
+                        "PortMappings": [{
+                            "ContainerPort" : 8080, 
+                            "HostPort" : 8080
+                        }],
+                        "Image" : { "Ref" : "PubsubImage" },
+                        "Memory" : 12000,
+                        "Name" : "Pubsub"
+                    }
+                ]
+            }
+        },
+        "PubsubESForwarderSNS": {
+            "Type" : "AWS::SNS::Topic",
+            "Properties" : {
+                "DisplayName" : { "Ref" : "PrimarySNS" },
+                "TopicName" : { "Ref" : "PrimarySNS" },
+                "Subscription" : [
+                    {
+                        "Endpoint" : { "Fn::GetAtt" : ["PubsubLambdaESForwarder", "Arn"] },
+                        "Protocol" : "lambda"
+                    }
+                ]
+            }
+        },
+        "PubsubECSScalingSNS" : {
+            "Type" : "AWS::SNS::Topic",
+            "Properties" : {
+                "DisplayName" : "PubsubECSScalingSNS",
+                "TopicName" : "PubsubECSScalingSNS",
+                "Subscription" : [
+                    {
+                        "Endpoint" : { "Fn::GetAtt" : ["PubsubLambdaECSScaling", "Arn"] },
+                        "Protocol" : "lambda"
+                    }
+                ]
+            }
+        },
+        "PubsubS3Bucket" : {
+            "Type" : "AWS::S3::Bucket",
+            "Condition" : "MakeS3Bucket",
+            "Properties" : {
+                "BucketName" : { "Ref" : "S3BucketName" },
+                "LifecycleConfiguration" : {
+                    "Rules" : [
+                        {
+                            "Id" : "DeleteAfterOneYear",
+                            "ExpirationInDays" : 365,
+                            "Status" : "Enabled"
+                        }
+                    ]
+                },
+                "LoggingConfiguration" : {
+                    "Fn::If" : [
+                        "NoS3Logging",
+                        { "Ref" : "AWS::NoValue"},
+                        {
+                            "DestinationBucketName": {"Ref" : "LoggingBucket"},
+                            "LogFilePrefix": {"Ref": "S3BucketName" }
+                        }
+                    ]
+                }
+            }
+        },
+        "PubsubLambdaESForwarder" : {
+            "Type" : "AWS::Lambda::Function",
+            "Properties" : {
+                "Code" : {
+                    "S3Bucket" : { "Ref" : "LambdaCodeBucket" },
+                    "S3Key" : { "Ref" : "LambdaESForwarderCodeFile" }
+                },
+                "Description" : "Forwards pubsub messages to an ElasticSearch cluster",
+                "Handler" : "index.handler",
+                "Timeout" : 30,
+                "Runtime" : "nodejs",
+                "Role" : { "Ref" : "IamRoleLambdaESForwarder" }
+            }
+        },
+        "PubsubLambdaPermissionESForwarder": {
+            "Type" : "AWS::Lambda::Permission",
+            "Properties" : {
+                "Action" : "lambda:*",
+                "FunctionName" : { "Fn::GetAtt" : [ "PubsubLambdaESForwarder", "Arn"] },
+                "Principal" : "sns.amazonaws.com",
+                "SourceArn" : { "Ref" : "PubsubESForwarderSNS" }
+            }
+        },
+        "PubsubLambdaECSScaling" : {
+            "Type" : "AWS::Lambda::Function",
+            "Metadata" : { "Version" : "1" },
+            "Properties" : {
+                "Code" : {
+                    "S3Bucket" : { "Ref" : "LambdaCodeBucket" },
+                    "S3Key" : { "Ref" : "LambdaECSScalingCodeFile" }
+                },
+                "Description" : "Scales pubsub ECS service to match ASG array",
+                "Handler" : "index.lambda_handler",
+                "Timeout" : 5,
+                "Runtime" : "python2.7",
+                "Role" : { "Ref" : "IamRoleLambdaECSScaling" }
+            }
+        },
+        "PubsubLambdaPermissionECSScaling": {
+            "Type" : "AWS::Lambda::Permission",
+            "Properties" : {
+                "Action" : "lambda:*",
+                "FunctionName" : { "Fn::GetAtt" : [ "PubsubLambdaECSScaling", "Arn"] },
+                "Principal" : "sns.amazonaws.com",
+                "SourceArn" : { "Ref" : "PubsubECSScalingSNS"}
+            }
+        }
+    }
+}

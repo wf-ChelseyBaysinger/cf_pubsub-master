@@ -1,0 +1,126 @@
+[
+	{
+		"ParameterKey": "AMI",
+		"ParameterValue":"ami-b48099de"
+	},
+    {
+        "ParameterKey": "PubsubImage",
+        "ParameterValue": "drydock.workiva.org/jameskoll-wf/pubsub_logs_to_sns:29625"
+    },
+	{
+		"ParameterKey": "VPC",
+		"ParameterValue":"vpc-145f0a70"
+	},
+	{
+		"ParameterKey": "DefaultSG",
+		"ParameterValue":"sg-cb6873b2"
+	},
+	{
+		"ParameterKey": "Subnets",
+		"ParameterValue":"subnet-55553068,subnet-dd338dab,subnet-83ec3cdb"
+	},
+	{
+		"ParameterKey": "AvailabilityZones",
+		"ParameterValue": "us-east-1a,us-east-1b,us-east-1c"
+	},
+    {
+        "ParameterKey": "ECSVersion",
+        "ParameterValue":"v1.8.0"
+    },
+	{
+		"ParameterKey": "PubsubServerInstanceProfile",
+		"ParameterValue":"arn:aws:iam::663511558366:instance-profile/Pubsub-Dev-Iam-PubsubInstanceProfile-1HKZNV6HM7COH"
+	},
+    {
+        "ParameterKey": "DesiredContainerCount",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "AppInstanceType",
+        "ParameterValue": "m3.xlarge"
+    },
+	{
+		"ParameterKey": "AppDesiredCapacity",
+		"ParameterValue":"1"
+	},
+	{
+		"ParameterKey": "AppMaxGroupSize",
+		"ParameterValue":"20"
+	},
+	{
+		"ParameterKey": "AppMinGroupSize",
+		"ParameterValue":"1"
+	},
+	{
+		"ParameterKey": "CertARN",
+		"ParameterValue":"arn:aws:acm:us-east-1:663511558366:certificate/02822ada-70ec-408b-8b11-a36d97e34c6b"
+	},
+	{
+		"ParameterKey": "Role",
+		"ParameterValue":"Dev"
+	},
+	{
+		"ParameterKey": "Purpose",
+		"ParameterValue":"Pubsub"
+	},
+	{
+		"ParameterKey": "Service",
+		"ParameterValue":"Docker"
+	},
+	{
+		"ParameterKey": "HealthCheckTarget",
+		"ParameterValue": "HTTP:8080/"
+	},
+	{
+		"ParameterKey": "S3BucketName",
+		"ParameterValue": "w-pubsub-logs-dev"
+	},
+	{
+		"ParameterKey": "LoggingBucket",
+		"ParameterValue": "None"
+	},
+	{
+		"ParameterKey": "SecondaryRegion",
+		"ParameterValue": "us-west-2"
+	},
+	{
+		"ParameterKey": "PrimaryKinesisFirehose",
+		"ParameterValue": "pubsub_logs"
+	},
+	{
+		"ParameterKey": "SecondaryKinesisFirehose",
+		"ParameterValue": "pubsub_logs"
+	},
+	{
+		"ParameterKey": "PrimarySNS",
+		"ParameterValue": "cloud_logs"
+	},
+	{
+		"ParameterKey": "SecondarySNS",
+		"ParameterValue": "cloud_logs"
+	},
+	{
+		"ParameterKey": "AccountID",
+		"ParameterValue": "663511558366"
+	},
+	{
+		"ParameterKey": "LambdaCodeBucket",
+		"ParameterValue": "cloudops-dev-lambda-code"
+	},
+	{
+		"ParameterKey": "LambdaESForwarderCodeFile",
+		"ParameterValue": "Pubsub-dev/PubsubESForwarder-dev.zip"
+	},
+	{
+		"ParameterKey": "LambdaECSScalingCodeFile",
+		"ParameterValue": "Pubsub-dev/PubsubECSScaling-dev.zip"
+	},
+	{
+		"ParameterKey": "IamRoleLambdaESForwarder",
+		"ParameterValue": "arn:aws:iam::663511558366:role/Pubsub-Dev-Iam-PubsubLambdaESForwarderIamRole-WD426ZO5YZW5"
+	},
+	{
+		"ParameterKey": "IamRoleLambdaECSScaling",
+		"ParameterValue": "arn:aws:iam::663511558366:role/Pubsub-Dev-Iam-PubsubLambdaEcsScalingIamRole-1UEM1GB8XN46W"
+	}
+]

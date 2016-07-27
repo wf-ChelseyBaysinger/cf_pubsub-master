@@ -1,0 +1,46 @@
+[
+    {
+    	"ParameterKey": "AccountID",
+    	"ParameterValue":"806289232271"
+    },
+    {
+    	"ParameterKey": "Role",
+    	"ParameterValue":"Production"
+    },
+    {
+    	"ParameterKey": "Purpose",
+    	"ParameterValue":"Pubsub-logs"
+    },
+    {
+    	"ParameterKey": "ElasticSearchArn",
+    	"ParameterValue":"arn:aws:es:us-east-1:806289232271:domain/pubsub-logs/*"
+    },
+    {
+    	"ParameterKey": "Region1",
+    	"ParameterValue":"us-east-1"
+    },
+    {
+    	"ParameterKey": "Region2",
+    	"ParameterValue":"us-west-2"
+    },
+    {
+    	"ParameterKey": "KinesisFirehoseStreamName",
+    	"ParameterValue":"pubsub_logs"
+    },
+    {
+    	"ParameterKey": "SNS1",
+    	"ParameterValue":"cloud_logs"
+    },
+    {
+    	"ParameterKey": "SNS2",
+    	"ParameterValue":"cloud_logs"
+    },
+    {
+    	"ParameterKey": "S3BucketName",
+    	"ParameterValue":"w-pubsub-logs-prod"
+    },
+    {
+    	"ParameterKey": "KMSEncryptionKey",
+    	"ParameterValue":"arn:aws:kms:us-east-1:806289232271:key/650a5990-8fde-4492-bc2d-e59ae5374b7a"
+    }
+]

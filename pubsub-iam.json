@@ -1,0 +1,236 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Pubsub Iam Stack",
+    "Parameters": {
+	    "AccountID": {
+	        "Description": "AWS Account ID for the stack",
+	        "Type": "String"
+        },
+	    "Role": {
+	        "Description": "Role for the stack",
+	        "Type": "String"
+	    },
+	    "Purpose": {
+	        "Description": "Purpose for the stack",
+	        "Type": "String"
+	    },
+	    "ElasticSearchArn": {
+	        "Description": "ARN for the elasticsearch cluster in the stack",
+	        "Type": "String"
+        },
+	    "Region1": {
+	        "Description": "One of the regions the stack will be spread across",
+	        "Type": "String"
+        },
+	    "Region2": {
+	        "Description": "The other region the stack will be spread across",
+	        "Type": "String"
+        },
+	    "KinesisFirehoseStreamName": {
+	        "Description": "The name of the kinesis firehose stream you will use in both regions",
+	        "Type": "String"
+        },
+	    "SNS1": {
+	        "Description": "One of the SNS queues the stack will use",
+	        "Type": "String"
+        },
+	    "SNS2": {
+	        "Description": "The other SNS queue the stack will use",
+	        "Type": "String"
+        },
+	    "S3BucketName": {
+	        "Description": "Name of the S3 bucket the firehose stream will log to",
+	        "Type": "String"
+        },
+	    "KMSEncryptionKey": {
+	        "Description": "The KMS encryption key used to encrypt the s3 bucket contents",
+	        "Type": "String"
+        }
+    },
+    "Resources": {
+        "PubsubInstanceProfileIAMRole": {
+            "Type": "AWS::IAM::Role",
+            "Metadata": {"Version": "1"},
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "ec2.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role" ],
+                "Policies": [ {
+                    "PolicyName": {"Fn::Join" : ["",["Pubsub",{"Ref": "Role" },"InstanceRole"]]},
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "sns:Publish"
+                                ],
+                                "Resource": [ 
+                                    { "Fn::Join" : ["",["arn:aws:sns:", { "Ref" : "Region1"},":",{ "Ref" : "AccountID" },":",{ "Ref" : "SNS1"}]]},
+                                    { "Fn::Join" : ["",["arn:aws:sns:", { "Ref" : "Region2"},":",{ "Ref" : "AccountID" },":",{ "Ref" : "SNS2"}]]}
+                                ]
+                            },
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "firehose:PutRecord",
+                                    "firehose:PutRecordBatch"
+                                ],
+                                "Resource" : [
+                                    { "Fn::Join" : ["",["arn:aws:firehose:", { "Ref" : "Region1"},":",{ "Ref" : "AccountID" },":deliverystream/",{ "Ref" : "KinesisFirehoseStreamName"}]]},
+                                    { "Fn::Join" : ["",["arn:aws:firehose:", { "Ref" : "Region2"},":",{ "Ref" : "AccountID" },":deliverystream/",{ "Ref" : "KinesisFirehoseStreamName"}]]}
+                                ]
+                            }
+                        ]
+                    }
+               }]
+            }
+        },
+        "PubsubInstanceProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile",
+            "Properties" : {
+                "Path" : "/",
+                "Roles" : [ { "Ref" : "PubsubInstanceProfileIAMRole" } ]
+            }
+        },
+        "PubsubLambdaESForwarderIamRole" : {
+            "Type" : "AWS::IAM::Role" ,
+            "Properties" : {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "lambda.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ],
+                "Policies": [ {
+                    "PolicyName": {"Fn::Join" : ["",["PubsubESForwarder",{"Ref": "Role" }]]},
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "es:*"
+                                ],
+                                "Resource": [ 
+                                    { "Ref" : "ElasticSearchArn" }
+                                ]
+                            }
+                        ]
+                    }
+               }]
+            }
+        },
+        "PubsubLambdaEcsScalingIamRole" : {
+            "Type" : "AWS::IAM::Role" ,
+            "Properties" : {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "lambda.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ],
+                "Policies": [ {
+                    "PolicyName": {"Fn::Join" : ["",["PubsubESCScaling",{"Ref": "Role" }]]},
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "autoscaling:Describe*",
+                                    "ecs:UpdateService",
+                                    "ecs:ListServices",
+                                    "ecs:DescribeServices",
+                                    "ecs:UpdateService"
+                                ],
+                                "Resource": [ 
+                                    "*"
+                                ]
+                            }
+                        ]
+                    }
+               }]
+            }
+        },
+        "PubsubFirehoseIamRole" : {
+            "Type" : "AWS::IAM::Role" ,
+            "Properties" : {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "firehose.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "Policies": [ {
+                    "PolicyName": {"Fn::Join" : ["",["Pubsub",{"Ref": "Role" },"InstanceRole"]]},
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "s3:AbortMultipartUpload",        
+                                    "s3:GetBucketLocation",        
+                                    "s3:GetObject",        
+                                    "s3:ListBucket",        
+                                    "s3:ListBucketMultipartUploads",        
+                                    "s3:PutObject"
+                                ],
+                                "Resource": [ 
+                                    { "Fn::Join" : ["",["arn:aws:s3:::",{ "Ref" : "S3BucketName" }]]},
+                                    { "Fn::Join" : ["",["arn:aws:s3:::",{ "Ref" : "S3BucketName" },"/*"]]}    
+                                ]
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : 
+                                [
+                                    "kms:Decrypt",
+                                    "kms:GenerateDataKey"
+                                ],
+                                "Resource": 
+                                [
+                                    { "Ref" : "KMSEncryptionKey" }
+                                ],
+                                "Condition": 
+                                {
+                                    "StringEquals": 
+                                    {
+                                        "kms:ViaService": "s3.region.amazonaws.com"
+                                    },
+                                    "StringLike": 
+                                    {
+                                        "kms:EncryptionContext:aws:s3:arn": { "Fn::Join" : ["",["arn:aws:s3:::",{ "Ref" : "S3BucketName" },"/*"]]}
+                                    }
+                                }
+                            }
+                        ]
+                    }
+               }]
+            }
+        }
+    }
+}
